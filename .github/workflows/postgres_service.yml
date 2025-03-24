@@ -1,0 +1,40 @@
+name: PostgreSQL Service Workflow
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:11
+        env:
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U test_user"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Wait for PostgreSQL to be ready
+        run: |
+          echo "Waiting for PostgreSQL to start..."
+          until nc -z localhost 5432; do
+            sleep 1
+          done
+          echo "PostgreSQL is up and running!"
+
+      - name: Test PostgreSQL Connection
+        run: |
+          sudo apt-get install -y postgresql-client
+          PGPASSWORD=test_password psql -h localhost -U test_user -d test_db -c "SELECT version();"
+
